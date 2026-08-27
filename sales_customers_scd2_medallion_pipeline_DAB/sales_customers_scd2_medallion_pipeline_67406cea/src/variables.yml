@@ -1,0 +1,58 @@
+# Bundle variables for the Sales Customers SCD2 Medallion Pipeline
+# Included by databricks.yml via: include: src/variables.yml
+
+variables:
+  # --- Environment-wide ---
+  environment:
+    description: Deployment environment (dev or prod)
+    default: dev
+
+  source_table:
+    description: Fully qualified source table for bronze ingestion
+    default: samples.bakehouse.sales_customers
+
+  catalog:
+    description: Unity Catalog catalog for pipeline datasets
+    default: dev
+
+  schema:
+    description: Unity Catalog schema for pipeline-level default (required - no default)
+
+  # --- Bronze layer ---
+  bronze_schema:
+    description: Schema for bronze layer datasets
+    default: bronze
+
+  bronze_data_volume:
+    description: Storage volume path for bronze layer data (empty for workspace default)
+    default: data
+
+  bronze_checkpoint_volume:
+    description: Storage volume path for bronze layer checkpoints (empty for workspace default)
+    default: checkpoint
+
+  # --- Silver layer ---
+  silver_schema:
+    description: Schema for silver layer datasets
+    default: silver
+
+  silver_data_volume:
+    description: Storage volume path for silver layer data (empty for workspace default)
+    default: data
+
+  silver_checkpoint_volume:
+    description: Storage volume path for silver layer checkpoints (empty for workspace default)
+    default: checkpoint
+
+  # --- Gold layer ---
+  gold_schema:
+    description: Schema for gold layer datasets
+    default: gold
+
+  gold_data_volume:
+    description: Storage volume path for gold layer data (empty for workspace default)
+    default: data
+
+  gold_checkpoint_volume:
+    description: Storage volume path for gold layer checkpoints (empty for workspace default)
+    default: checkpoint

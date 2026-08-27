@@ -1,0 +1,35 @@
+# Pipeline resource for the Sales Customers SCD2 Medallion Pipeline
+# Included by databricks.yml via: include: resources/pipelines/*.yml
+
+resources:
+  pipelines:
+    sales_customers_scd2:
+      name: sales_customers_scd2_medallion_pipeline
+      catalog: ${var.catalog}
+      schema: default
+      photon: true
+      serverless: true
+      channel: CURRENT
+      root_path: ${workspace.file_path}
+      libraries:
+        - glob:
+            include: ../notebooks/**
+      configuration:
+        project.environment: ${var.environment}
+        project.source.table: ${var.source_table}
+        project.target.catalog: ${var.catalog}
+        project.target.schema: default
+        project.target.base_path: ""
+        bronze.target.catalog: ${var.catalog}
+        bronze.target.schema: ${var.bronze_schema}
+        bronze.target.data_volume: ${var.bronze_data_volume}
+        bronze.target.checkpoint_volume: ${var.bronze_checkpoint_volume}
+        silver.target.catalog: ${var.catalog}
+        silver.target.schema: ${var.silver_schema}
+        silver.target.data_volume: ${var.silver_data_volume}
+        silver.target.checkpoint_volume: ${var.silver_checkpoint_volume}
+        gold.target.catalog: ${var.catalog}
+        gold.target.schema: ${var.gold_schema}
+        gold.target.data_volume: ${var.gold_data_volume}
+        gold.target.checkpoint_volume: ${var.gold_checkpoint_volume}
+        project.scd2.track_history_except: snapshot_ts,record_hash,environment_name,source_table_name

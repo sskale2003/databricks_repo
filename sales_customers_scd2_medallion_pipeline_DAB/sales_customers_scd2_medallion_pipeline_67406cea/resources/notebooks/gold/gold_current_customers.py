@@ -1,19 +1,25 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-from transformations.config.pipeline_config import DATASET_NAMES, dataset_options
+from resources.notebooks.config.pipeline_config import (
+    GOLD_SCHEMA,
+    SILVER_SCHEMA,
+    TARGET_CATALOG,
+    dataset_options,
+)
 
 
 @dp.materialized_view(
     **dataset_options(
-        "gold_current_customers",
+        name=f"{TARGET_CATALOG}.{GOLD_SCHEMA}.current_customers",
         comment="Gold current-state customer dimension derived from the SCD Type 2 history table.",
+        quality="gold",
         cluster_by=["country", "state"],
     )
 )
 def gold_current_customers():
     return (
-        spark.read.table(DATASET_NAMES["silver_customers_scd2"])
+        spark.read.table(f"{TARGET_CATALOG}.{SILVER_SCHEMA}.customers_scd2")
         .filter(F.col("__END_AT").isNull())
         .select(
             "customer_id",

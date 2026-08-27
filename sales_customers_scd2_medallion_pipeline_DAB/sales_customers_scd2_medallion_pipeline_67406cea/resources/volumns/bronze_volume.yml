@@ -1,0 +1,10 @@
+resources:
+  volumes:
+    bronze_data_volume:
+      name: ${var.bronze_data_volume}
+      description: Schema for bronze layer datasets
+      catalog_name: ${var.catalog}
+    bronze_checkpoint_volume:
+      name: ${var.bronze_checkpoint_volume}
+      description: Schema for bronze layer datasets
+      catalog_name: ${var.catalog}

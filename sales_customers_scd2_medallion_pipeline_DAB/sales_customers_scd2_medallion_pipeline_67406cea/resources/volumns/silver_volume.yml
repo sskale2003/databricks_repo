@@ -1,0 +1,10 @@
+resources:
+  volumes:
+    silver_data_volume:
+      name: ${var.silver_data_volume}
+      description: Schema for silver layer datasets
+      catalog_name: ${var.catalog}
+    silver_checkpoint_volume:
+      name: ${var.silver_checkpoint_volume}
+      description: Schema for silver layer datasets
+      catalog_name: ${var.catalog}

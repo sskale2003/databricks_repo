@@ -1,0 +1,32 @@
+# Declarative Automation Bundle (DAB) for the Sales Customers SCD2 Medallion Pipeline
+# Deploy with: databricks bundle deploy -t dev  (or -t prod)
+
+bundle:
+  name: sales_customers_scd2_medallion
+
+include:
+  - src/variables.yml
+  - src/env/*.yml
+  - resources/pipelines/*.yml
+  - resources/schemas/*.yml
+  - resources/volumes/*.yml
+  
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      schema: default
+
+  prod:
+    mode: production
+    variables:
+      environment: prod
+      source_table: prod.sales_customers
+      catalog: prod
+      schema: default
+      
+    workspace:
+      root_path: /Workspace/Production/.bundle/${bundle.name}
+    run_as:
+      user_name: ${workspace.current_user.userName}

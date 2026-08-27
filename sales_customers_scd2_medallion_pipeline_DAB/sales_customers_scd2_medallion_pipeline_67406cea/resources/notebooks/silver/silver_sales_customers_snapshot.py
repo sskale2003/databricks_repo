@@ -1,10 +1,13 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-from transformations.config.pipeline_config import (
-    DATASET_NAMES,
+
+from resources.notebooks.config.pipeline_config import (
+    BRONZE_SCHEMA,
     ENVIRONMENT,
+    SILVER_SCHEMA,
     SOURCE_TABLE,
+    TARGET_CATALOG,
     dataset_options,
 )
 
@@ -28,14 +31,15 @@ BUSINESS_COLUMNS = [
 
 @dp.materialized_view(
     **dataset_options(
-        "silver_sales_customers_snapshot",
+        name=f"{TARGET_CATALOG}.{SILVER_SCHEMA}.sales_customers_snapshot",
         comment="Silver customer snapshot standardized for downstream SCD Type 2 processing.",
+        quality="silver",
         cluster_by=["country", "state"],
     )
 )
 def silver_sales_customers_snapshot():
     standardized_df = (
-        spark.read.table(DATASET_NAMES["bronze_sales_customers"])
+        spark.read.table(f"{TARGET_CATALOG}.{BRONZE_SCHEMA}.sales_customers")
         .filter(F.col("customerID").isNotNull())
         .select(
             F.col("customerID").cast("bigint").alias("customer_id"),

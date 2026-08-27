@@ -1,0 +1,6 @@
+resources:
+  schemas:
+    gold_schema:
+      name: ${var.gold_schema}
+      catalog_name: ${var.catalog}
+      comment: Schema for gold layer datasets
