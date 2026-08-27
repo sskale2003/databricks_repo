@@ -1,0 +1,50 @@
+# Declarative Automation Bundle (DAB) pipeline configuration template
+# Example: dev and prod environment settings override for medallion-layered pipeline
+
+# Defaults (can be omitted, for illustration)
+default:
+  project.environment: "dev"
+  project.resource_prefix: "dev_"
+  project.source.table: "samples.bakehouse.sales_customers"
+  bronze.target.catalog: "workspace"
+  bronze.target.schema: "bronze"
+  bronze.target.data_volume: ""
+  bronze.target.checkpoint_volume: ""
+  silver.target.catalog: "workspace"
+  silver.target.schema: "silver"
+  silver.target.data_volume: ""
+  silver.target.checkpoint_volume: ""
+  gold.target.catalog: "workspace"
+  gold.target.schema: "gold"
+  gold.target.data_volume: ""
+  gold.target.checkpoint_volume: ""
+  project.scd2.track_history_except: "snapshot_ts,record_hash,environment_name,source_table_name"
+
+# Dev target (inherits defaults)
+targets:
+  dev:
+    # Optionally override for dev branches
+    project.environment: "dev"
+    bronze.target.catalog: "workspace"
+    bronze.target.schema: "bronze_dev"
+    silver.target.schema: "silver_dev"
+    gold.target.schema: "gold_dev"
+    # No volume path override for local workspace
+
+  prod:
+    project.environment: "prod"
+    project.resource_prefix: "prod_"
+    project.source.table: "prod.sales_customers"
+    bronze.target.catalog: "sales_prod"
+    bronze.target.schema: "bronze"
+    bronze.target.data_volume: "s3://prod-customer-bronze"
+    bronze.target.checkpoint_volume: "s3://prod-customer-bronze-checkpoints"
+    silver.target.catalog: "sales_prod"
+    silver.target.schema: "silver"
+    silver.target.data_volume: "s3://prod-customer-silver"
+    silver.target.checkpoint_volume: "s3://prod-customer-silver-checkpoints"
+    gold.target.catalog: "sales_prod"
+    gold.target.schema: "gold"
+    gold.target.data_volume: "s3://prod-customer-gold"
+    gold.target.checkpoint_volume: "s3://prod-customer-gold-checkpoints"
+    project.scd2.track_history_except: "snapshot_ts,record_hash,environment_name,source_table_name"
