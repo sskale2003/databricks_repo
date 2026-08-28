@@ -1,0 +1,6 @@
+resources:
+  catalogs:
+    catalog:
+      name: ${var.catalog}
+      comment: catalog for dev/prod
+      #storage_root: ${var.catalog_storage_root}

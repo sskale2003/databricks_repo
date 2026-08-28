@@ -18,32 +18,32 @@ targets:
       resource_prefix: dev_
       source_table: samples.bakehouse.sales_customers
       catalog: dev
-      bronze_schema: bronze
-      silver_schema: silver
-      gold_schema: gold
-      bronze_data_volume: ""
-      bronze_checkpoint_volume: ""
-      silver_data_volume: ""
-      silver_checkpoint_volume: ""
-      gold_data_volume: ""
-      gold_checkpoint_volume: ""
+      #bronze_schema: bronze
+      #silver_schema: silver
+      #gold_schema: gold
+      #bronze_data_volume: ""
+      #bronze_checkpoint_volume: ""
+      #silver_data_volume: ""
+      #silver_checkpoint_volume: ""
+      #gold_data_volume: ""
+      #gold_checkpoint_volume: ""
 
   prod:
     mode: production
     variables:
       environment: prod
       resource_prefix: prod_
-      source_table: prod.sales_customers
+      source_table: samples.bakehouse.sales_customers
       catalog: prod
-      bronze_schema: bronze
-      silver_schema: silver
-      gold_schema: gold
-      bronze_data_volume: s3://prod-customer-bronze
-      bronze_checkpoint_volume: s3://prod-customer-bronze-checkpoints
-      silver_data_volume: s3://prod-customer-silver
-      silver_checkpoint_volume: s3://prod-customer-silver-checkpoints
-      gold_data_volume: s3://prod-customer-gold
-      gold_checkpoint_volume: s3://prod-customer-gold-checkpoints
+      #bronze_schema: bronze
+      #silver_schema: silver
+      #gold_schema: gold
+      #bronze_data_volume: s3://prod-customer-bronze
+      #bronze_checkpoint_volume: s3://#prod-customer-bronze-checkpoints
+      #silver_data_volume: s3://prod-customer-silver
+      #silver_checkpoint_volume: s3://#prod-customer-silver-checkpoints
+      #gold_data_volume: s3://prod-customer-gold
+      #gold_checkpoint_volume: s3://#prod-customer-gold-checkpoints
     workspace:
       root_path: /Workspace/Production/.bundle/${bundle.name}
     run_as:

@@ -7,13 +7,17 @@ variables:
     description: Deployment environment (dev or prod)
     default: dev
 
+  catalog:
+        description: Unity Catalog catalog for pipeline datasets
+        default: dev
+
+  #catalog_storage_root:
+    #description: S3 storage root for the catalog (required when metastore has no default storage root)
+
   source_table:
     description: Fully qualified source table for bronze ingestion
     default: samples.bakehouse.sales_customers
 
-  catalog:
-    description: Unity Catalog catalog for pipeline datasets
-    default: dev
 
   schema:
     description: Unity Catalog schema for pipeline-level default (required - no default)
