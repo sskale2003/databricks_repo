@@ -26,7 +26,6 @@ targets:
     mode: production
     variables:
       environment: prod
-      source_table: prod.sales_customers
       catalog: prod
       #catalog_storage_root: s3://dbstorage-prod-jctgz/uc/a966cfdf-7d1f-452e-b8dd-b8902830ce4f/f81719ac-4c77-4a42-ae8e-b444cf451f92/prod
       schema: default
