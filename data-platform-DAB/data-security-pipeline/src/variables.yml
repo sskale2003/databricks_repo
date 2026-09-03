@@ -1,0 +1,16 @@
+# Bundle variables for the Data Security Pipeline
+# Included by databricks.yml via: include: src/variables.yml
+
+variables:
+  # --- Environment-wide ---
+  environment:
+    description: Deployment environment (dev or prod)
+    default: dev
+
+  catalog:
+    description: Unity Catalog catalog containing the target table (current_customers)
+    default: dev
+
+  gold_schema:
+    description: Schema in the gold layer containing the current_customers materialized view
+    default: gold

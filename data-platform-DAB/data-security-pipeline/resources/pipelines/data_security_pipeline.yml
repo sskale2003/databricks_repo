@@ -1,0 +1,24 @@
+# Pipeline resource for the Data Security Pipeline
+# Defines an SDP (Spark Declarative Pipeline) that includes the apply-data-security notebook
+# and sets the Spark conf keys the notebook reads to resolve ${catalog} and ${gold_schema}.
+# Included by databricks.yml via: include: resources/pipelines/*.yml
+
+resources:
+  pipelines:
+    data_security_pipeline:
+      name: data_security_pipeline_${var.environment}
+      catalog: ${var.catalog}
+      schema: default
+      photon: true
+      serverless: true
+      channel: CURRENT
+      root_path: ${workspace.file_path}
+      libraries:
+        - glob:
+            include: ../notebooks/**
+      configuration:
+        # Spark conf keys consumed by the notebook to resolve ${catalog} and ${gold_schema}
+        # placeholders in pipeline_config.json at runtime
+        project.target.catalog: ${var.catalog}
+        gold.target.schema: ${var.gold_schema}
+        project.environment: ${var.environment}

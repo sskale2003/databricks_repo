@@ -1,0 +1,27 @@
+# Job resource for the Data Security Pipeline
+# Runs the apply-data-security notebook to apply all security controls
+# (governed tags, tag applications, UDFs, RBAC, row filters, column masks, ABAC policies)
+# Included by databricks.yml via: include: resources/jobs/*.yml
+
+resources:
+  jobs:
+    apply_data_security:
+      name: data_security_pipeline_${var.environment}
+      tasks:
+        - task_key: apply_security
+          notebook_task:
+            notebook_path: ../notebooks/apply-data-security
+            base_parameters:
+              config_file_path: /Workspace/Repos/${workspace.current_user.userName}/databricks_repo/data-platform-DAB/data-security-pipeline/resources/notebooks/config/pipeline_config.json
+          job_cluster_key: security_cluster
+      job_clusters:
+        - job_cluster_key: security_cluster
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "i3.xlarge"
+            num_workers: 1
+            spark_conf:
+              # Spark conf keys consumed by the notebook to resolve ${catalog} and ${gold_schema}
+              # placeholders in pipeline_config.json at runtime
+              project.target.catalog: ${var.catalog}
+              gold.target.schema: ${var.gold_schema}

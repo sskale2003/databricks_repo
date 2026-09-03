@@ -1,0 +1,32 @@
+# Declarative Automation Bundle (DAB) for the Data Security Pipeline
+# Deploy with: databricks bundle deploy -t dev  (or -t prod)
+
+bundle:
+  name: data_security_pipeline
+
+include:
+  - src/variables.yml
+  - src/env/*.yml
+  - resources/pipelines/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      environment: dev
+      catalog: dev
+      gold_schema: gold
+    workspace:
+      root_path: /Workspace/Development/.bundle/${workspace.current_user.userName}/${bundle.name}
+
+  prod:
+    mode: production
+    variables:
+      environment: prod
+      catalog: prod
+      gold_schema: gold
+    workspace:
+      root_path: /Workspace/Production/.bundle/${bundle.name}
+    run_as:
+      user_name: ${workspace.current_user.userName}
