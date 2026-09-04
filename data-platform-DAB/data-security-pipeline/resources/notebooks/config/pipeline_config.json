@@ -396,6 +396,50 @@
       ]
     }
   ],
+  "column_masks": [
+    {
+      "table": "${catalog}.${gold_schema}.current_customers",
+      "column": "email_address",
+      "udf": "${catalog}.${gold_schema}.mask_email",
+      "using_columns": ["email_address"]
+    },
+    {
+      "table": "${catalog}.${gold_schema}.current_customers",
+      "column": "phone_number",
+      "udf": "${catalog}.${gold_schema}.mask_phone",
+      "using_columns": ["phone_number"]
+    },
+    {
+      "table": "${catalog}.${gold_schema}.current_customers",
+      "column": "full_name",
+      "udf": "${catalog}.${gold_schema}.mask_name",
+      "using_columns": ["full_name"]
+    },
+    {
+      "table": "${catalog}.${gold_schema}.current_customers",
+      "column": "first_name",
+      "udf": "${catalog}.${gold_schema}.mask_name",
+      "using_columns": ["first_name"]
+    },
+    {
+      "table": "${catalog}.${gold_schema}.current_customers",
+      "column": "last_name",
+      "udf": "${catalog}.${gold_schema}.mask_name",
+      "using_columns": ["last_name"]
+    },
+    {
+      "table": "${catalog}.${gold_schema}.current_customers",
+      "column": "address",
+      "udf": "${catalog}.${gold_schema}.mask_address",
+      "using_columns": ["address"]
+    },
+    {
+      "table": "${catalog}.${gold_schema}.current_customers",
+      "column": "postal_zip_code",
+      "udf": "${catalog}.${gold_schema}.mask_postal_code",
+      "using_columns": ["postal_zip_code"]
+    }
+  ],
   "abac_policies": [
     {
       "name": "email_redaction",

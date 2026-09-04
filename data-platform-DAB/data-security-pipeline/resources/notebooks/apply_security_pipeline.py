@@ -45,7 +45,7 @@ with open(config_path, "r") as f:
 # Validate required config sections
 required_sections = [
     "catalog", "dab_variables", "governed_tags", "tag_applications",
-    "udfs", "rbac", "row_filters", "abac_policies",
+    "udfs", "rbac", "row_filters", "column_masks",
 ]
 missing = [s for s in required_sections if s not in pipeline_config]
 if missing:
