@@ -310,46 +310,6 @@ for rf in pipeline_config.get("row_filters", []):
     except Exception as e:
         results.append(("row_filter", table, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
-# --- Step 5.5: Create Secured Views (workaround for materialized view masking) ---
-for sv in pipeline_config.get("secured_views", []):
-    view_name = sv["view_name"]
-    source_table = sv["source_table"]
-    comment = sv.get("comment", "")
-    masked_cols = sv.get("masked_columns", [])
-    
-    # Build SELECT statement with conditional masking
-    select_parts = []
-    
-    # Get all columns from source table
-    try:
-        cols_df = spark.sql(f"DESCRIBE {source_table}")
-        all_columns = [row["col_name"] for row in cols_df.collect() if not row["col_name"].startswith("#")]
-        
-        # Map of column -> (mask_udf, condition)
-        mask_map = {mc["column"]: (mc["mask_udf"], mc["condition"]) for mc in masked_cols}
-        
-        for col in all_columns:
-            if col in mask_map:
-                mask_udf, condition = mask_map[col]
-                # Apply mask conditionally: IF condition THEN mask_udf(col) ELSE col
-                select_parts.append(f"CASE WHEN {condition} THEN {mask_udf}(`{col}`) ELSE `{col}` END AS `{col}`")
-            else:
-                select_parts.append(f"`{col}`")
-        
-        # Build CREATE VIEW statement
-        select_clause = ",\n    ".join(select_parts)
-        view_sql = f"""CREATE OR REPLACE VIEW {view_name}
-COMMENT '{comment}'
-AS
-SELECT
-    {select_clause}
-FROM {source_table}"""
-        
-        spark.sql(view_sql)
-        results.append(("secured_view", view_name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
-    except Exception as e:
-        results.append(("secured_view", view_name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
-
 # --- Step 6: Apply Manual Column Masks ---
 for cm in pipeline_config.get("column_masks", []):
     table = cm["table"]
