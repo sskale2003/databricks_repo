@@ -10,6 +10,8 @@ then returns a status DataFrame so SDP has a valid materialized view.
 from pyspark import pipelines as dp
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.tags import TagPolicy, Value
+from pyspark.sql.functions import current_timestamp
+from datetime import datetime
 import json
 import os
 
@@ -67,6 +69,19 @@ def security_application_status():
         pipeline_config = json.loads(config_str)
 
     results = []
+    
+    # Capture audit metadata
+    try:
+        pipeline_run_id = spark.conf.get("spark.databricks.pipeline.updateId")
+    except Exception:
+        pipeline_run_id = "unknown"
+    
+    try:
+        pipeline_name = spark.conf.get("spark.databricks.pipeline.name")
+    except Exception:
+        pipeline_name = "unknown"
+    
+    execution_timestamp = datetime.utcnow().isoformat()
 
     # --- Step 1: Create Governed Tags ---
     w = WorkspaceClient()
@@ -82,7 +97,7 @@ def security_application_status():
                     values=[Value(name=v) for v in tag_values],
                 )
             )
-            results.append(("governed_tag", tag_key, "OK", ""))
+            results.append(("governed_tag", tag_key, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
             err_str = str(e)
             if "ALREADY_EXISTS" in err_str.upper() or "already" in err_str.lower():
@@ -94,11 +109,11 @@ def security_application_status():
                             values=[Value(name=v) for v in tag_values],
                         )
                     )
-                    results.append(("governed_tag", tag_key, "OK", "updated existing"))
+                    results.append(("governed_tag", tag_key, "OK", "updated existing", execution_timestamp, pipeline_name, pipeline_run_id))
                 except Exception as e2:
-                    results.append(("governed_tag", tag_key, "FAIL", str(e2)))
+                    results.append(("governed_tag", tag_key, "FAIL", str(e2), execution_timestamp, pipeline_name, pipeline_run_id))
             else:
-                results.append(("governed_tag", tag_key, "FAIL", str(e)))
+                results.append(("governed_tag", tag_key, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
     # --- Step 2: Apply Tags to Tables and Columns ---
     tag_apps = pipeline_config["tag_applications"]
@@ -109,9 +124,9 @@ def security_application_status():
         sql = f"ALTER TABLE {table} SET TAGS ({tag_str})"
         try:
             spark.sql(sql)
-            results.append(("table_tag", table, "OK", ""))
+            results.append(("table_tag", table, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("table_tag", table, "FAIL", str(e)))
+            results.append(("table_tag", table, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
     for col_tag in tag_apps.get("column_tags", []):
         table = col_tag["table"]
@@ -121,9 +136,9 @@ def security_application_status():
             sql = f"ALTER TABLE {table} ALTER COLUMN {column} SET TAGS ('{tag_key}' = '{tag_value}')"
             try:
                 spark.sql(sql)
-                results.append(("column_tag", f"{table}.{column}", "OK", ""))
+                results.append(("column_tag", f"{table}.{column}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
             except Exception as e:
-                results.append(("column_tag", f"{table}.{column}", "FAIL", str(e)))
+                results.append(("column_tag", f"{table}.{column}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
     # --- Step 3: Create UDFs ---
     for udf_def in pipeline_config["udfs"]:
@@ -148,9 +163,9 @@ def security_application_status():
             sql += f"AS $$\n{code_body}\n$$"
         try:
             spark.sql(sql)
-            results.append(("udf", udf_name, "OK", ""))
+            results.append(("udf", udf_name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("udf", udf_name, "FAIL", str(e)))
+            results.append(("udf", udf_name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
     # --- Step 4: Apply RBAC Grants ---
     rbac_config = pipeline_config["rbac"]
@@ -162,9 +177,9 @@ def security_application_status():
         sql = f"GRANT {privilege} ON {object_type} {obj} TO `{principal}`"
         try:
             spark.sql(sql)
-            results.append(("rbac", f"{obj}->{principal}", "OK", ""))
+            results.append(("rbac", f"{obj}->{principal}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("rbac", f"{obj}->{principal}", "FAIL", str(e)))
+            results.append(("rbac", f"{obj}->{principal}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
     # --- Step 5: Apply Manual Row Filters ---
     for rf in pipeline_config.get("row_filters", []):
@@ -175,9 +190,9 @@ def security_application_status():
         sql = f"ALTER TABLE {table} SET ROW FILTER {udf}({cols_str})"
         try:
             spark.sql(sql)
-            results.append(("row_filter", table, "OK", ""))
+            results.append(("row_filter", table, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("row_filter", table, "FAIL", str(e)))
+            results.append(("row_filter", table, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
     # --- Step 6: Apply Manual Column Masks ---
     for cm in pipeline_config.get("column_masks", []):
@@ -189,9 +204,9 @@ def security_application_status():
         sql = f"ALTER TABLE {table} ALTER COLUMN {column} SET MASK {udf}({cols_str})"
         try:
             spark.sql(sql)
-            results.append(("column_mask", f"{table}.{column}", "OK", ""))
+            results.append(("column_mask", f"{table}.{column}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("column_mask", f"{table}.{column}", "FAIL", str(e)))
+            results.append(("column_mask", f"{table}.{column}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
     # --- Step 7: Apply ABAC Policies ---
     for policy in pipeline_config.get("abac_policies", []):
@@ -233,15 +248,15 @@ def security_application_status():
             sql += f"USING COLUMNS ({using_str})\n"
         try:
             spark.sql(sql)
-            results.append(("abac_policy", name, "OK", ""))
+            results.append(("abac_policy", name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("abac_policy", name, "FAIL", str(e)))
+            results.append(("abac_policy", name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
     # --- Return status DataFrame ---
     if results:
         return spark.createDataFrame(
             results,
-            schema="step STRING, target STRING, status STRING, message STRING",
+            schema="step STRING, target STRING, status STRING, message STRING, execution_timestamp STRING, pipeline_name STRING, pipeline_run_id STRING",
         )
     else:
-        return spark.sql("SELECT 'none' AS step, 'none' AS target, 'OK' AS status, 'No security controls configured' AS message")
+        return spark.sql(f"SELECT 'none' AS step, 'none' AS target, 'OK' AS status, 'No security controls configured' AS message, '{execution_timestamp}' AS execution_timestamp, '{pipeline_name}' AS pipeline_name, '{pipeline_run_id}' AS pipeline_run_id")
