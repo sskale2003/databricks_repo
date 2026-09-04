@@ -167,7 +167,11 @@ for table_tag in tag_apps.get("table_tags", []):
             )
             results.append(("table_tag", f"{table}.{tag_key}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("table_tag", f"{table}.{tag_key}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+            err_str = str(e)
+            if "already exists" in err_str.lower():
+                results.append(("table_tag", f"{table}.{tag_key}", "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+            else:
+                results.append(("table_tag", f"{table}.{tag_key}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
 for col_tag in tag_apps.get("column_tags", []):
     table = col_tag["table"]
@@ -185,7 +189,11 @@ for col_tag in tag_apps.get("column_tags", []):
             )
             results.append(("column_tag", f"{table}.{column}.{tag_key}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("column_tag", f"{table}.{column}.{tag_key}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+            err_str = str(e)
+            if "already exists" in err_str.lower():
+                results.append(("column_tag", f"{table}.{column}.{tag_key}", "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+            else:
+                results.append(("column_tag", f"{table}.{column}.{tag_key}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
 # --- Step 3: Create UDFs ---
 for udf_def in pipeline_config["udfs"]:
@@ -223,6 +231,7 @@ for udf_def in pipeline_config["udfs"]:
     else:
         _routine_body = CreateFunctionRoutineBody.EXTERNAL
         _routine_def = code_body
+    _external_language = language.lower() if language != "SQL" else None
     try:
         w.functions.create(
             function_info=CreateFunction(
@@ -241,6 +250,7 @@ for udf_def in pipeline_config["udfs"]:
                 security_type=CreateFunctionSecurityType.DEFINER,
                 specific_name=_fn_name,
                 comment=comment if comment else None,
+                external_language=_external_language,
             )
         )
         results.append(("udf", udf_name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
@@ -255,7 +265,7 @@ for item in rbac_config.get("grants", []):
     object_type = item["object_type"]
     obj = item["object"]
     try:
-        _sec_type = getattr(SecurableType, object_type.upper().replace(" ", "_"), SecurableType.TABLE)
+        _sec_type = object_type.lower()
         w.grants.update(
             securable_type=_sec_type,
             full_name=obj,
