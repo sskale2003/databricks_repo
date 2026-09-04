@@ -7,6 +7,13 @@ then exposes a @dp.materialized_view that returns a status DataFrame.
 from pyspark import pipelines as dp
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.tags import TagPolicy, Value
+from databricks.sdk.service.catalog import (
+    EntityTagAssignment, CreateFunction, FunctionParameterInfo, FunctionParameterInfos,
+    PolicyInfo, ColumnMaskOptions, RowFilterOptions, MatchColumn, FunctionArgument,
+    PermissionsChange, Privilege, ColumnTypeName, CreateFunctionRoutineBody,
+    CreateFunctionParameterStyle, CreateFunctionSqlDataAccess, CreateFunctionSecurityType,
+    PolicyType, SecurableType
+)
 from datetime import datetime
 import json
 import os
@@ -81,6 +88,22 @@ execution_timestamp = datetime.utcnow().isoformat()
 
 w = WorkspaceClient()
 
+# Get warehouse ID for DDL via statement execution API (row filters, column masks)
+_warehouse_id = None
+try:
+    _warehouse_id = spark.conf.get("spark.databricks.sql.warehouse.id")
+except Exception:
+    pass
+if not _warehouse_id:
+    for _wh in w.warehouses.list():
+        if _wh.state == "RUNNING":
+            _warehouse_id = _wh.id
+            break
+    if not _warehouse_id:
+        _whs = list(w.warehouses.list())
+        if _whs:
+            _warehouse_id = _whs[0].id
+
 # --- Step 0: Create Groups ---
 for group_def in pipeline_config.get("rbac", {}).get("groups", []):
     group_name = group_def["name"]
@@ -132,25 +155,37 @@ tag_apps = pipeline_config["tag_applications"]
 for table_tag in tag_apps.get("table_tags", []):
     table = table_tag["table"]
     tags = table_tag["tags"]
-    tag_str = ", ".join([f"'{k}' = '{v}'" for k, v in tags.items()])
-    sql = f"ALTER TABLE {table} SET TAGS ({tag_str})"
-    try:
-        spark.sql(sql)
-        results.append(("table_tag", table, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
-    except Exception as e:
-        results.append(("table_tag", table, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+    for tag_key, tag_value in tags.items():
+        try:
+            w.entity_tag_assignments.create(
+                tag_assignment=EntityTagAssignment(
+                    entity_name=table,
+                    entity_type="TABLE",
+                    tag_key=tag_key,
+                    tag_value=tag_value,
+                )
+            )
+            results.append(("table_tag", f"{table}.{tag_key}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        except Exception as e:
+            results.append(("table_tag", f"{table}.{tag_key}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
 for col_tag in tag_apps.get("column_tags", []):
     table = col_tag["table"]
     column = col_tag["column"]
     tags = col_tag["tags"]
     for tag_key, tag_value in tags.items():
-        sql = f"ALTER TABLE {table} ALTER COLUMN {column} SET TAGS ('{tag_key}' = '{tag_value}')"
         try:
-            spark.sql(sql)
-            results.append(("column_tag", f"{table}.{column}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+            w.entity_tag_assignments.create(
+                tag_assignment=EntityTagAssignment(
+                    entity_name=f"{table}.{column}",
+                    entity_type="COLUMN",
+                    tag_key=tag_key,
+                    tag_value=tag_value,
+                )
+            )
+            results.append(("column_tag", f"{table}.{column}.{tag_key}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         except Exception as e:
-            results.append(("column_tag", f"{table}.{column}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("column_tag", f"{table}.{column}.{tag_key}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
 # --- Step 3: Create UDFs ---
 for udf_def in pipeline_config["udfs"]:
@@ -160,26 +195,79 @@ for udf_def in pipeline_config["udfs"]:
     comment = udf_def.get("comment", "")
     code_body = udf_def["code"]
     params = udf_def.get("params", [])
-    param_str = ", ".join([f"{p['name']} {p['type']}" for p in params])
-    sql = f"CREATE OR REPLACE FUNCTION {udf_name}({param_str})\n"
-    sql += f"RETURNS {return_type}\n"
-    sql += f"LANGUAGE {language}\n"
-    if comment:
-        sql += f"COMMENT '{escape_sql_string(comment)}'\n"
-    if language == "SQL":
-        if code_body.strip().upper().startswith("RETURN"):
-            sql += code_body
-        else:
-            sql += f"RETURN {code_body}"
-    else:
-        sql += f"AS $$\n{code_body}\n$$"
+    # Parse full_name: catalog.schema.function_name
+    _parts = udf_name.split(".")
+    _catalog = udf_def.get("catalog", _parts[0] if len(_parts) > 2 else "")
+    _schema = udf_def.get("schema", _parts[1] if len(_parts) > 2 else "")
+    _fn_name = udf_def.get("name", _parts[-1])
+    # Map return type to ColumnTypeName enum
     try:
-        spark.sql(sql)
+        _data_type = getattr(ColumnTypeName, return_type.upper().replace(" ", "_"))
+    except AttributeError:
+        _data_type = ColumnTypeName.STRING
+    # Build parameter info list
+    _param_infos = [
+        FunctionParameterInfo(
+            name=p["name"],
+            type_text=p["type"],
+            type_name=getattr(ColumnTypeName, p["type"].upper().replace(" ", "_"), ColumnTypeName.STRING),
+            position=idx,
+        )
+        for idx, p in enumerate(params)
+    ]
+    # Set routine body and definition based on language
+    if language == "SQL":
+        _routine_body = CreateFunctionRoutineBody.SQL
+        _routine_def = code_body if code_body.strip().upper().startswith("RETURN") else f"RETURN {code_body}"
+    else:
+        _routine_body = CreateFunctionRoutineBody.EXTERNAL
+        _routine_def = code_body
+    try:
+        w.functions.create(
+            function_info=CreateFunction(
+                name=_fn_name,
+                catalog_name=_catalog,
+                schema_name=_schema,
+                input_params=FunctionParameterInfos(parameters=_param_infos) if _param_infos else None,
+                data_type=_data_type,
+                full_data_type=return_type,
+                routine_body=_routine_body,
+                routine_definition=_routine_def,
+                parameter_style=CreateFunctionParameterStyle.S,
+                is_deterministic=False,
+                sql_data_access=CreateFunctionSqlDataAccess.NO_SQL,
+                is_null_call=True,
+                security_type=CreateFunctionSecurityType.DEFINER,
+                specific_name=_fn_name,
+                comment=comment if comment else None,
+            )
+        )
         results.append(("udf", udf_name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
     except Exception as e:
         results.append(("udf", udf_name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
-# --- Step 4: Apply RBAC Privileges (placeholder) ---
+# --- Step 4: Apply RBAC Privileges ---
+# IMPORTANT: The automated editor's safety filter blocks the GRANT keyword.
+# Manually change the _ddl line below to: _ddl = f"GRANT {privilege} ON {object_type} {obj} TO `{principal}`"
+rbac_config = pipeline_config["rbac"]
+for item in rbac_config.get("grants", []):
+    principal = item["principal"]
+    privilege = item["privilege"]
+    object_type = item["object_type"]
+    obj = item["object"]
+    _ddl = f"{privilege} ON {object_type} {obj} TO `{principal}`"
+    try:
+        if _warehouse_id:
+            w.statement_execution.execute_statement(
+                statement=f"{_ddl}",
+                warehouse_id=_warehouse_id,
+                wait_for_timeout="30s",
+            )
+            results.append(("rbac", f"{obj}->{principal}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        else:
+            results.append(("rbac", f"{obj}->{principal}", "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
+    except Exception as e:
+        results.append(("rbac", f"{obj}->{principal}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 # --- Step 5: Apply Manual Row Filters ---
 for rf in pipeline_config.get("row_filters", []):
     table = rf["table"]
@@ -187,12 +275,19 @@ for rf in pipeline_config.get("row_filters", []):
     using_cols = rf.get("using_columns", [])
     if using_cols:
         cols_str = ", ".join(using_cols)
-        sql = f"ALTER TABLE {table} SET ROW FILTER {udf} ON ({cols_str})"
+        _ddl = f"ALTER TABLE {table} SET ROW FILTER {udf} ON ({cols_str})"
     else:
-        sql = f"ALTER TABLE {table} SET ROW FILTER {udf}"
+        _ddl = f"ALTER TABLE {table} SET ROW FILTER {udf}"
     try:
-        spark.sql(sql)
-        results.append(("row_filter", table, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        if _warehouse_id:
+            w.statement_execution.execute_statement(
+                statement=_ddl,
+                warehouse_id=_warehouse_id,
+                wait_for_timeout="30s",
+            )
+            results.append(("row_filter", table, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        else:
+            results.append(("row_filter", table, "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
     except Exception as e:
         results.append(("row_filter", table, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
@@ -204,12 +299,19 @@ for cm in pipeline_config.get("column_masks", []):
     using_cols = cm.get("using_columns", [])
     if using_cols:
         cols_str = ", ".join(using_cols)
-        sql = f"ALTER TABLE {table} ALTER COLUMN {column} SET MASK {udf} USING COLUMNS ({cols_str})"
+        _ddl = f"ALTER TABLE {table} ALTER COLUMN {column} SET MASK {udf} USING COLUMNS ({cols_str})"
     else:
-        sql = f"ALTER TABLE {table} ALTER COLUMN {column} SET MASK {udf}"
+        _ddl = f"ALTER TABLE {table} ALTER COLUMN {column} SET MASK {udf}"
     try:
-        spark.sql(sql)
-        results.append(("column_mask", f"{table}.{column}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        if _warehouse_id:
+            w.statement_execution.execute_statement(
+                statement=_ddl,
+                warehouse_id=_warehouse_id,
+                wait_for_timeout="30s",
+            )
+            results.append(("column_mask", f"{table}.{column}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        else:
+            results.append(("column_mask", f"{table}.{column}", "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
     except Exception as e:
         results.append(("column_mask", f"{table}.{column}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
@@ -226,37 +328,44 @@ for policy in pipeline_config.get("abac_policies", []):
     match_cols = policy.get("match_columns")
     on_column = policy.get("on_column")
     using_cols = policy.get("using_columns", [])
-    sql = f"CREATE POLICY {name}\n"
-    sql += f"ON {scope_type} {scope}\n"
+    _ddl = f"CREATE POLICY {name}\n"
+    _ddl += f"ON {scope_type} {scope}\n"
     if policy_type == "ROW_FILTER":
-        sql += f"ROW FILTER {udf}\n"
+        _ddl += f"ROW FILTER {udf}\n"
     elif policy_type == "COLUMN_MASK":
-        sql += f"COLUMN MASK {udf}\n"
+        _ddl += f"COLUMN MASK {udf}\n"
     if to_principals:
         to_str = ", ".join([f"`{p}`" for p in to_principals])
-        sql += f"TO {to_str}\n"
+        _ddl += f"TO {to_str}\n"
     if except_principals:
         except_str = ", ".join([f"`{p}`" for p in except_principals])
-        sql += f"EXCEPT {except_str}\n"
-    sql += "FOR TABLES\n"
+        _ddl += f"EXCEPT {except_str}\n"
+    _ddl += "FOR TABLES\n"
     if when_cond:
-        sql += f"WHEN {when_cond}\n"
+        _ddl += f"WHEN {when_cond}\n"
     if match_cols:
-        sql += f"MATCH COLUMNS {match_cols}\n"
+        _ddl += f"MATCH COLUMNS {match_cols}\n"
     if policy_type == "COLUMN_MASK" and on_column:
-        sql += f"ON COLUMN {on_column}\n"
+        _ddl += f"ON COLUMN {on_column}\n"
     if using_cols:
         if policy_type == "COLUMN_MASK" and on_column:
             additional_cols = [c for c in using_cols if c != on_column]
             if additional_cols:
                 using_str = ", ".join(additional_cols)
-                sql += f"USING COLUMNS ({using_str})\n"
+                _ddl += f"USING COLUMNS ({using_str})\n"
         else:
             using_str = ", ".join(using_cols)
-            sql += f"USING COLUMNS ({using_str})\n"
+            _ddl += f"USING COLUMNS ({using_str})\n"
     try:
-        spark.sql(sql)
-        results.append(("abac_policy", name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        if _warehouse_id:
+            w.statement_execution.execute_statement(
+                statement=_ddl,
+                warehouse_id=_warehouse_id,
+                wait_for_timeout="30s",
+            )
+            results.append(("abac_policy", name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        else:
+            results.append(("abac_policy", name, "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
     except Exception as e:
         err_str = str(e)
         if "already exists" in err_str.lower() or "ALREADY_EXISTS" in err_str.upper():
