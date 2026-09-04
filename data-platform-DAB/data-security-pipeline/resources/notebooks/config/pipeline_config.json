@@ -396,6 +396,50 @@
       ]
     }
   ],
+  "secured_views": [
+    {
+      "view_name": "${catalog}.${gold_schema}.current_customers_secured",
+      "source_table": "${catalog}.${gold_schema}.current_customers",
+      "comment": "Secured view with column masking for PII fields (workaround for materialized view limitation)",
+      "masked_columns": [
+        {
+          "column": "email_address",
+          "mask_udf": "${catalog}.${gold_schema}.mask_email",
+          "condition": "is_account_group_member('analysts')"
+        },
+        {
+          "column": "phone_number",
+          "mask_udf": "${catalog}.${gold_schema}.mask_phone",
+          "condition": "is_account_group_member('analysts')"
+        },
+        {
+          "column": "full_name",
+          "mask_udf": "${catalog}.${gold_schema}.mask_name",
+          "condition": "is_account_group_member('analysts')"
+        },
+        {
+          "column": "first_name",
+          "mask_udf": "${catalog}.${gold_schema}.mask_name",
+          "condition": "is_account_group_member('analysts')"
+        },
+        {
+          "column": "last_name",
+          "mask_udf": "${catalog}.${gold_schema}.mask_name",
+          "condition": "is_account_group_member('analysts')"
+        },
+        {
+          "column": "address",
+          "mask_udf": "${catalog}.${gold_schema}.mask_address",
+          "condition": "is_account_group_member('analysts')"
+        },
+        {
+          "column": "postal_zip_code",
+          "mask_udf": "${catalog}.${gold_schema}.mask_postal_code",
+          "condition": "is_account_group_member('analysts')"
+        }
+      ]
+    }
+  ],
   "column_masks": [
     {
       "table": "${catalog}.${gold_schema}.current_customers",
