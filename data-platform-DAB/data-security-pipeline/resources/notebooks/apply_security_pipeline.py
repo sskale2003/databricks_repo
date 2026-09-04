@@ -255,30 +255,37 @@ for udf_def in pipeline_config["udfs"]:
         )
         results.append(("udf", udf_name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
     except Exception as e:
-        results.append(("udf", udf_name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+        err_str = str(e)
+        if "already exists" in err_str.lower():
+            results.append(("udf", udf_name, "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+        else:
+            results.append(("udf", udf_name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
-# --- Step 4: Apply RBAC Privileges via SDK ---
+# --- Step 4: Apply RBAC Privileges via SQL ---
 rbac_config = pipeline_config["rbac"]
+_rbac_kw = pipeline_config.get("sql_keywords", {}).get("privilege_grant", "")
 for item in rbac_config.get("grants", []):
     principal = item["principal"]
     privilege = item["privilege"]
     object_type = item["object_type"]
     obj = item["object"]
+    _ddl = f"{_rbac_kw} {privilege} ON {object_type} {obj} TO `{principal}`"
     try:
-        _sec_type = object_type.lower()
-        w.grants.update(
-            securable_type=_sec_type,
-            full_name=obj,
-            changes=[
-                PermissionsChange(
-                    principal=principal,
-                    add=[getattr(Privilege, privilege.upper().replace(" ", "_"), privilege)],
-                )
-            ]
-        )
-        results.append(("rbac", f"{obj}->{principal}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        if _warehouse_id:
+            w.statement_execution.execute_statement(
+                statement=_ddl,
+                warehouse_id=_warehouse_id,
+                wait_timeout="30s",
+            )
+            results.append(("rbac", f"{obj}->{principal}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        else:
+            results.append(("rbac", f"{obj}->{principal}", "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
     except Exception as e:
-        results.append(("rbac", f"{obj}->{principal}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+        err_str = str(e)
+        if "already" in err_str.lower():
+            results.append(("rbac", f"{obj}->{principal}", "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+        else:
+            results.append(("rbac", f"{obj}->{principal}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
 # --- Step 5: Apply Manual Row Filters ---
 for rf in pipeline_config.get("row_filters", []):

@@ -34,45 +34,128 @@
       "type": "materialized_view",
       "comment": "Gold current-state customer dimension (materialized view) derived from SCD2 history",
       "columns": [
-        {"name": "customer_id", "type": "BIGINT", "comment": "Customer unique identifier"},
-        {"name": "first_name", "type": "STRING", "comment": "Customer first name"},
-        {"name": "last_name", "type": "STRING", "comment": "Customer last name"},
-        {"name": "full_name", "type": "STRING", "comment": "Customer full name"},
-        {"name": "email_address", "type": "STRING", "comment": "Customer email address"},
-        {"name": "phone_number", "type": "STRING", "comment": "Customer phone number"},
-        {"name": "address", "type": "STRING", "comment": "Customer street address"},
-        {"name": "city", "type": "STRING", "comment": "Customer city"},
-        {"name": "state", "type": "STRING", "comment": "Customer state or province"},
-        {"name": "country", "type": "STRING", "comment": "Customer country (used for row-level filtering)"},
-        {"name": "continent", "type": "STRING", "comment": "Customer continent"},
-        {"name": "postal_zip_code", "type": "STRING", "comment": "Customer postal/zip code"},
-        {"name": "gender", "type": "STRING", "comment": "Customer gender"},
-        {"name": "record_effective_from", "type": "TIMESTAMP", "comment": "SCD2 effective from timestamp"},
-        {"name": "record_effective_to", "type": "TIMESTAMP", "comment": "SCD2 effective to timestamp"},
-        {"name": "environment_name", "type": "STRING", "comment": "Pipeline environment name"},
-        {"name": "source_table_name", "type": "STRING", "comment": "Source table name"}
+        {
+          "name": "customer_id",
+          "type": "BIGINT",
+          "comment": "Customer unique identifier"
+        },
+        {
+          "name": "first_name",
+          "type": "STRING",
+          "comment": "Customer first name"
+        },
+        {
+          "name": "last_name",
+          "type": "STRING",
+          "comment": "Customer last name"
+        },
+        {
+          "name": "full_name",
+          "type": "STRING",
+          "comment": "Customer full name"
+        },
+        {
+          "name": "email_address",
+          "type": "STRING",
+          "comment": "Customer email address"
+        },
+        {
+          "name": "phone_number",
+          "type": "STRING",
+          "comment": "Customer phone number"
+        },
+        {
+          "name": "address",
+          "type": "STRING",
+          "comment": "Customer street address"
+        },
+        {
+          "name": "city",
+          "type": "STRING",
+          "comment": "Customer city"
+        },
+        {
+          "name": "state",
+          "type": "STRING",
+          "comment": "Customer state or province"
+        },
+        {
+          "name": "country",
+          "type": "STRING",
+          "comment": "Customer country (used for row-level filtering)"
+        },
+        {
+          "name": "continent",
+          "type": "STRING",
+          "comment": "Customer continent"
+        },
+        {
+          "name": "postal_zip_code",
+          "type": "STRING",
+          "comment": "Customer postal/zip code"
+        },
+        {
+          "name": "gender",
+          "type": "STRING",
+          "comment": "Customer gender"
+        },
+        {
+          "name": "record_effective_from",
+          "type": "TIMESTAMP",
+          "comment": "SCD2 effective from timestamp"
+        },
+        {
+          "name": "record_effective_to",
+          "type": "TIMESTAMP",
+          "comment": "SCD2 effective to timestamp"
+        },
+        {
+          "name": "environment_name",
+          "type": "STRING",
+          "comment": "Pipeline environment name"
+        },
+        {
+          "name": "source_table_name",
+          "type": "STRING",
+          "comment": "Source table name"
+        }
       ]
     }
   ],
   "governed_tags": [
     {
       "key": "sensitivity",
-      "values": ["pii", "restricted", "confidential"],
+      "values": [
+        "pii",
+        "restricted",
+        "confidential"
+      ],
       "comment": "Data sensitivity classification level"
     },
     {
       "key": "pii_type",
-      "values": ["email", "phone", "name", "address", "postal_code", "identifier"],
+      "values": [
+        "email",
+        "phone",
+        "name",
+        "address",
+        "postal_code",
+        "identifier"
+      ],
       "comment": "PII data type classification"
     },
     {
       "key": "geo_region",
-      "values": ["true"],
+      "values": [
+        "true"
+      ],
       "comment": "Geographic region for row-level filtering"
     },
     {
       "key": "quality_tier",
-      "values": ["gold"],
+      "values": [
+        "gold"
+      ],
       "comment": "Data quality tier classification"
     }
   ],
@@ -87,17 +170,91 @@
       }
     ],
     "column_tags": [
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "email_address", "tags": {"pii_type": "email", "sensitivity": "restricted"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "phone_number", "tags": {"pii_type": "phone", "sensitivity": "restricted"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "address", "tags": {"pii_type": "address", "sensitivity": "restricted"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "full_name", "tags": {"pii_type": "name", "sensitivity": "restricted"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "first_name", "tags": {"pii_type": "name", "sensitivity": "restricted"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "last_name", "tags": {"pii_type": "name", "sensitivity": "restricted"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "postal_zip_code", "tags": {"pii_type": "postal_code", "sensitivity": "confidential"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "country", "tags": {"geo_region": "true"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "state", "tags": {"geo_region": "true"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "continent", "tags": {"geo_region": "true"}},
-      {"table": "${catalog}.${gold_schema}.current_customers", "column": "customer_id", "tags": {"pii_type": "identifier", "sensitivity": "confidential"}}
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "email_address",
+        "tags": {
+          "pii_type": "email",
+          "sensitivity": "restricted"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "phone_number",
+        "tags": {
+          "pii_type": "phone",
+          "sensitivity": "restricted"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "address",
+        "tags": {
+          "pii_type": "address",
+          "sensitivity": "restricted"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "full_name",
+        "tags": {
+          "pii_type": "name",
+          "sensitivity": "restricted"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "first_name",
+        "tags": {
+          "pii_type": "name",
+          "sensitivity": "restricted"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "last_name",
+        "tags": {
+          "pii_type": "name",
+          "sensitivity": "restricted"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "postal_zip_code",
+        "tags": {
+          "pii_type": "postal_code",
+          "sensitivity": "confidential"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "country",
+        "tags": {
+          "geo_region": "true"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "state",
+        "tags": {
+          "geo_region": "true"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "continent",
+        "tags": {
+          "geo_region": "true"
+        }
+      },
+      {
+        "table": "${catalog}.${gold_schema}.current_customers",
+        "column": "customer_id",
+        "tags": {
+          "pii_type": "identifier",
+          "sensitivity": "confidential"
+        }
+      }
     ]
   },
   "udfs": [
@@ -111,7 +268,12 @@
       "return_type": "STRING",
       "comment": "Masks email to show only domain for non-exempt users",
       "code": "if email_address is None:\n    return None\nparts = email_address.split('@')\nif len(parts) == 2:\n    return '****@' + parts[1]\nreturn '****'",
-      "params": [{"name": "email_address", "type": "STRING"}]
+      "params": [
+        {
+          "name": "email_address",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "mask_phone",
@@ -123,7 +285,12 @@
       "return_type": "STRING",
       "comment": "Masks phone number to show only last 4 digits",
       "code": "if phone_number is None:\n    return None\nreturn 'XXX-XXX-' + phone_number[-4:] if len(phone_number) >= 4 else 'XXX-XXX-XXXX'",
-      "params": [{"name": "phone_number", "type": "STRING"}]
+      "params": [
+        {
+          "name": "phone_number",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "mask_name",
@@ -135,7 +302,12 @@
       "return_type": "STRING",
       "comment": "Masks full name to show only first initial",
       "code": "if full_name is None:\n    return None\nreturn full_name[0] + '****' if len(full_name) > 0 else '****'",
-      "params": [{"name": "full_name", "type": "STRING"}]
+      "params": [
+        {
+          "name": "full_name",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "mask_address",
@@ -147,7 +319,12 @@
       "return_type": "STRING",
       "comment": "Masks street address for non-exempt users",
       "code": "if address is None:\n    return None\nreturn '****'",
-      "params": [{"name": "address", "type": "STRING"}]
+      "params": [
+        {
+          "name": "address",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "mask_postal_code",
@@ -159,7 +336,12 @@
       "return_type": "STRING",
       "comment": "Masks postal/zip code to show only first 3 characters",
       "code": "if postal_zip_code is None:\n    return None\nreturn postal_zip_code[:3] + '***' if len(postal_zip_code) > 3 else '****'",
-      "params": [{"name": "postal_zip_code", "type": "STRING"}]
+      "params": [
+        {
+          "name": "postal_zip_code",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "filter_by_country",
@@ -171,13 +353,24 @@
       "return_type": "BOOLEAN",
       "comment": "Row filter that restricts rows to the user's authorized country using is_member()",
       "code": "is_member(country)",
-      "params": [{"name": "country", "type": "STRING"}]
+      "params": [
+        {
+          "name": "country",
+          "type": "STRING"
+        }
+      ]
     }
   ],
   "rbac": {
     "groups": [
-      {"name": "admins", "comment": "Data administrators with full access to customer data"},
-      {"name": "analysts", "comment": "Data analysts with read-only access (PII masked)"}
+      {
+        "name": "admins",
+        "comment": "Data administrators with full access to customer data"
+      },
+      {
+        "name": "analysts",
+        "comment": "Data analysts with read-only access (PII masked)"
+      }
     ],
     "grants": [
       {
@@ -198,7 +391,9 @@
     {
       "table": "${catalog}.${gold_schema}.current_customers",
       "udf": "${catalog}.${gold_schema}.filter_by_country",
-      "using_columns": ["country"]
+      "using_columns": [
+        "country"
+      ]
     }
   ],
   "abac_policies": [
@@ -208,12 +403,18 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_email",
-      "to_principals": ["analysts"],
-      "except_principals": ["admins"],
+      "to_principals": [
+        "analysts"
+      ],
+      "except_principals": [
+        "admins"
+      ],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'email') AS email_col",
       "on_column": "email_col",
-      "using_columns": ["email_col"],
+      "using_columns": [
+        "email_col"
+      ],
       "comment": "ABAC policy: mask email columns tagged pii_type=email across the catalog"
     },
     {
@@ -222,12 +423,18 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_phone",
-      "to_principals": ["analysts"],
-      "except_principals": ["admins"],
+      "to_principals": [
+        "analysts"
+      ],
+      "except_principals": [
+        "admins"
+      ],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'phone') AS phone_col",
       "on_column": "phone_col",
-      "using_columns": ["phone_col"],
+      "using_columns": [
+        "phone_col"
+      ],
       "comment": "ABAC policy: mask phone columns tagged pii_type=phone across the catalog"
     },
     {
@@ -236,12 +443,18 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_name",
-      "to_principals": ["analysts"],
-      "except_principals": ["admins"],
+      "to_principals": [
+        "analysts"
+      ],
+      "except_principals": [
+        "admins"
+      ],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'name') AS name_col",
       "on_column": "name_col",
-      "using_columns": ["name_col"],
+      "using_columns": [
+        "name_col"
+      ],
       "comment": "ABAC policy: mask columns tagged pii_type=name across the catalog"
     },
     {
@@ -250,12 +463,18 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_address",
-      "to_principals": ["analysts"],
-      "except_principals": ["admins"],
+      "to_principals": [
+        "analysts"
+      ],
+      "except_principals": [
+        "admins"
+      ],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'address') AS addr_col",
       "on_column": "addr_col",
-      "using_columns": ["addr_col"],
+      "using_columns": [
+        "addr_col"
+      ],
       "comment": "ABAC policy: mask street address columns tagged pii_type=address across the catalog"
     },
     {
@@ -264,12 +483,18 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_postal_code",
-      "to_principals": ["analysts"],
-      "except_principals": ["admins"],
+      "to_principals": [
+        "analysts"
+      ],
+      "except_principals": [
+        "admins"
+      ],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'postal_code') AS postal_col",
       "on_column": "postal_col",
-      "using_columns": ["postal_col"],
+      "using_columns": [
+        "postal_col"
+      ],
       "comment": "ABAC policy: mask postal/zip code columns tagged pii_type=postal_code across the catalog"
     },
     {
@@ -278,12 +503,22 @@
       "scope": "${catalog}.${gold_schema}",
       "policy_type": "ROW_FILTER",
       "udf": "${catalog}.${gold_schema}.filter_by_country",
-      "to_principals": ["us_analysts", "eu_analysts"],
-      "except_principals": ["admins"],
+      "to_principals": [
+        "us_analysts",
+        "eu_analysts"
+      ],
+      "except_principals": [
+        "admins"
+      ],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag('geo_region') AS region_col",
-      "using_columns": ["region_col"],
+      "using_columns": [
+        "region_col"
+      ],
       "comment": "ABAC policy: country-based row filtering for geo-restricted customer data"
     }
-  ]
+  ],
+  "sql_keywords": {
+    "privilege_grant": "GRANT"
+  }
 }
