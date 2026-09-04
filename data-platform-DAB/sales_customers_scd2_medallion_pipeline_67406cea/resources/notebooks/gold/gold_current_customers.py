@@ -9,7 +9,7 @@ from resources.notebooks.config.pipeline_config import (
 )
 
 
-@dp.materialized_view(
+@dp.table(
     **dataset_options(
         name=f"{TARGET_CATALOG}.{GOLD_SCHEMA}.current_customers",
         comment="Gold current-state customer dimension derived from the SCD Type 2 history table.",
