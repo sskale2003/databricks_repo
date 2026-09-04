@@ -176,14 +176,12 @@
   ],
   "rbac": {
     "groups": [
-      {"name": "data_admins", "comment": "Data administrators with full access to customer data"},
-      {"name": "analysts", "comment": "Data analysts with read-only access (PII masked)"},
-      {"name": "us_analysts", "comment": "US-based analysts with US region access"},
-      {"name": "eu_analysts", "comment": "EU-based analysts with EU region access"}
+      {"name": "admins", "comment": "Data administrators with full access to customer data"},
+      {"name": "analysts", "comment": "Data analysts with read-only access (PII masked)"}
     ],
     "grants": [
       {
-        "principal": "data_admins",
+        "principal": "admins",
         "privilege": "ALL PRIVILEGES",
         "object_type": "SCHEMA",
         "object": "${catalog}.${gold_schema}"
@@ -193,30 +191,6 @@
         "privilege": "SELECT",
         "object_type": "TABLE",
         "object": "${catalog}.${gold_schema}.current_customers"
-      },
-      {
-        "principal": "us_analysts",
-        "privilege": "SELECT",
-        "object_type": "TABLE",
-        "object": "${catalog}.${gold_schema}.current_customers"
-      },
-      {
-        "principal": "eu_analysts",
-        "privilege": "SELECT",
-        "object_type": "TABLE",
-        "object": "${catalog}.${gold_schema}.current_customers"
-      },
-      {
-        "principal": "us_analysts",
-        "privilege": "USE SCHEMA",
-        "object_type": "SCHEMA",
-        "object": "${catalog}.${gold_schema}"
-      },
-      {
-        "principal": "eu_analysts",
-        "privilege": "USE SCHEMA",
-        "object_type": "SCHEMA",
-        "object": "${catalog}.${gold_schema}"
       }
     ]
   },
@@ -234,8 +208,8 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_email",
-      "to_principals": ["analysts", "us_analysts", "eu_analysts"],
-      "except_principals": ["data_admins"],
+      "to_principals": ["analysts"],
+      "except_principals": ["admins"],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'email') AS email_col",
       "on_column": "email_col",
@@ -248,8 +222,8 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_phone",
-      "to_principals": ["analysts", "us_analysts", "eu_analysts"],
-      "except_principals": ["data_admins"],
+      "to_principals": ["analysts"],
+      "except_principals": ["admins"],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'phone') AS phone_col",
       "on_column": "phone_col",
@@ -262,8 +236,8 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_name",
-      "to_principals": ["analysts", "us_analysts", "eu_analysts"],
-      "except_principals": ["data_admins"],
+      "to_principals": ["analysts"],
+      "except_principals": ["admins"],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'name') AS name_col",
       "on_column": "name_col",
@@ -276,8 +250,8 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_address",
-      "to_principals": ["analysts", "us_analysts", "eu_analysts"],
-      "except_principals": ["data_admins"],
+      "to_principals": ["analysts"],
+      "except_principals": ["admins"],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'address') AS addr_col",
       "on_column": "addr_col",
@@ -290,8 +264,8 @@
       "scope": "${catalog}",
       "policy_type": "COLUMN_MASK",
       "udf": "${catalog}.${gold_schema}.mask_postal_code",
-      "to_principals": ["analysts", "us_analysts", "eu_analysts"],
-      "except_principals": ["data_admins"],
+      "to_principals": ["analysts"],
+      "except_principals": ["admins"],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag_value('pii_type', 'postal_code') AS postal_col",
       "on_column": "postal_col",
@@ -305,7 +279,7 @@
       "policy_type": "ROW_FILTER",
       "udf": "${catalog}.${gold_schema}.filter_by_country",
       "to_principals": ["us_analysts", "eu_analysts"],
-      "except_principals": ["data_admins"],
+      "except_principals": ["admins"],
       "when_condition": "has_tag_value('sensitivity', 'pii')",
       "match_columns": "has_tag('geo_region') AS region_col",
       "using_columns": ["region_col"],
