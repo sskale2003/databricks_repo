@@ -262,7 +262,7 @@ for item in rbac_config.get("grants", []):
             changes=[
                 PermissionsChange(
                     principal=principal,
-                    privilege=privilege,
+                    add=[getattr(Privilege, privilege.upper().replace(" ", "_"), privilege)],
                 )
             ]
         )
