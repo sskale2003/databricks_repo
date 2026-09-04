@@ -4,10 +4,10 @@ from pyspark.sql import functions as F
 from transformations.config.pipeline_config import DATASET_NAMES, dataset_options
 
 
-@dp.materialized_view(
+@dp.table(
     **dataset_options(
         "gold_current_customers",
-        comment="Gold current-state customer dimension derived from the incremental SCD Type 2 history table.",
+        comment="Gold current-state customer dimension derived from the SCD Type 2 history table.",
         cluster_by=["country", "state"],
     )
 )
