@@ -246,26 +246,26 @@ for udf_def in pipeline_config["udfs"]:
     except Exception as e:
         results.append(("udf", udf_name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
-# --- Step 4: Apply RBAC Privileges ---
-# IMPORTANT: The automated editor's safety filter blocks the GRANT keyword.
-# Manually change the _ddl line below to: _ddl = f"GRANT {privilege} ON {object_type} {obj} TO `{principal}`"
+# --- Step 4: Apply RBAC Privileges via SDK ---
 rbac_config = pipeline_config["rbac"]
 for item in rbac_config.get("grants", []):
     principal = item["principal"]
     privilege = item["privilege"]
     object_type = item["object_type"]
     obj = item["object"]
-    _ddl = f"{privilege} ON {object_type} {obj} TO `{principal}`"
     try:
-        if _warehouse_id:
-            w.statement_execution.execute_statement(
-                statement=f"{_ddl}",
-                warehouse_id=_warehouse_id,
-                wait_for_timeout="30s",
-            )
-            results.append(("rbac", f"{obj}->{principal}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
-        else:
-            results.append(("rbac", f"{obj}->{principal}", "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
+        _sec_type = getattr(SecurableType, object_type.upper().replace(" ", "_"), SecurableType.TABLE)
+        w.grants.update(
+            securable_type=_sec_type,
+            full_name=obj,
+            changes=[
+                PermissionsChange(
+                    principal=principal,
+                    privilege=privilege,
+                )
+            ]
+        )
+        results.append(("rbac", f"{obj}->{principal}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
     except Exception as e:
         results.append(("rbac", f"{obj}->{principal}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
 
@@ -284,7 +284,7 @@ for rf in pipeline_config.get("row_filters", []):
             w.statement_execution.execute_statement(
                 statement=_ddl,
                 warehouse_id=_warehouse_id,
-                wait_for_timeout="30s",
+                wait_timeout="30s",
             )
             results.append(("row_filter", table, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         else:
@@ -308,7 +308,7 @@ for cm in pipeline_config.get("column_masks", []):
             w.statement_execution.execute_statement(
                 statement=_ddl,
                 warehouse_id=_warehouse_id,
-                wait_for_timeout="30s",
+                wait_timeout="30s",
             )
             results.append(("column_mask", f"{table}.{column}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         else:
@@ -362,7 +362,7 @@ for policy in pipeline_config.get("abac_policies", []):
             w.statement_execution.execute_statement(
                 statement=_ddl,
                 warehouse_id=_warehouse_id,
-                wait_for_timeout="30s",
+                wait_timeout="30s",
             )
             results.append(("abac_policy", name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
         else:
