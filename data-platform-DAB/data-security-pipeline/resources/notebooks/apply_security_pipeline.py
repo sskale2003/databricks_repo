@@ -268,6 +268,7 @@ for item in rbac_config.get("grants", []):
             results.append(("rbac", f"{obj}->{principal}", "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
     except Exception as e:
         results.append(("rbac", f"{obj}->{principal}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+
 # --- Step 5: Apply Manual Row Filters ---
 for rf in pipeline_config.get("row_filters", []):
     table = rf["table"]
