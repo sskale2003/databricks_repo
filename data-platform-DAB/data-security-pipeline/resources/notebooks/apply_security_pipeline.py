@@ -211,6 +211,7 @@ for udf_def in pipeline_config["udfs"]:
             name=p["name"],
             type_text=p["type"],
             type_name=getattr(ColumnTypeName, p["type"].upper().replace(" ", "_"), ColumnTypeName.STRING),
+            type_json=json.dumps({"name": p["type"].upper().replace(" ", "_"), "type": p["type"].upper().replace(" ", "_")}),
             position=idx,
         )
         for idx, p in enumerate(params)
