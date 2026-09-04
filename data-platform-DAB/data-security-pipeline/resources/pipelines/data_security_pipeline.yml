@@ -14,8 +14,8 @@ resources:
       channel: CURRENT
       root_path: ${workspace.file_path}
       libraries:
-        - glob:
-            include: ../notebooks/**
+        - file:
+            path: ../notebooks/apply_security_pipeline.py
       configuration:
         # Spark conf keys consumed by the notebook to resolve ${catalog} and ${gold_schema}
         # placeholders in pipeline_config.json at runtime
