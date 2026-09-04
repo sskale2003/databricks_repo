@@ -160,7 +160,7 @@ for table_tag in tag_apps.get("table_tags", []):
             w.entity_tag_assignments.create(
                 tag_assignment=EntityTagAssignment(
                     entity_name=table,
-                    entity_type="TABLE",
+                    entity_type="tables",
                     tag_key=tag_key,
                     tag_value=tag_value,
                 )
@@ -178,7 +178,7 @@ for col_tag in tag_apps.get("column_tags", []):
             w.entity_tag_assignments.create(
                 tag_assignment=EntityTagAssignment(
                     entity_name=f"{table}.{column}",
-                    entity_type="COLUMN",
+                    entity_type="columns",
                     tag_key=tag_key,
                     tag_value=tag_value,
                 )
