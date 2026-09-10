@@ -8,7 +8,7 @@ from resources.notebooks.config.pipeline_config import (
 )
 
 
-@dp.materialized_view(
+@dp.table(
     **dataset_options(
         name=f"{TARGET_CATALOG}.{GOLD_SCHEMA}.customer_geography_summary",
         comment="Gold geography summary over the current-state customer dimension.",
