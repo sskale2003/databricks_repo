@@ -8,4 +8,4 @@ targets:
 
     presets:
       #name_prefix: dev_${workspace.current_user.short_name}
-      source_linked_deployment: false
+      source_linked_deployment: true
