@@ -266,8 +266,8 @@
       "type": "column_mask",
       "language": "python",
       "return_type": "STRING",
-      "comment": "Masks email to show only domain for non-exempt users",
-      "code": "if email_address is None:\n    return None\nparts = email_address.split('@')\nif len(parts) == 2:\n    return '****@' + parts[1]\nreturn '****'",
+      "comment": "Masks email to show only domain for non-admin users. Admins see unmasked data.",
+      "code": "# Check if current user is an admin - admins see unmasked data\nif spark.sql(\"SELECT is_account_group_member('admins')\").collect()[0][0]:\n    return email_address\n# Non-admins see masked data\nif email_address is None:\n    return None\nparts = email_address.split('@')\nif len(parts) == 2:\n    return '****@' + parts[1]\nreturn '****'",
       "params": [
         {
           "name": "email_address",
@@ -283,8 +283,8 @@
       "type": "column_mask",
       "language": "python",
       "return_type": "STRING",
-      "comment": "Masks phone number to show only last 4 digits",
-      "code": "if phone_number is None:\n    return None\nreturn 'XXX-XXX-' + phone_number[-4:] if len(phone_number) >= 4 else 'XXX-XXX-XXXX'",
+      "comment": "Masks phone number to show only last 4 digits for non-admin users. Admins see unmasked data.",
+      "code": "# Check if current user is an admin - admins see unmasked data\nif spark.sql(\"SELECT is_account_group_member('admins')\").collect()[0][0]:\n    return phone_number\n# Non-admins see masked data\nif phone_number is None:\n    return None\nreturn 'XXX-XXX-' + phone_number[-4:] if len(phone_number) >= 4 else 'XXX-XXX-XXXX'",
       "params": [
         {
           "name": "phone_number",
@@ -300,8 +300,8 @@
       "type": "column_mask",
       "language": "python",
       "return_type": "STRING",
-      "comment": "Masks full name to show only first initial",
-      "code": "if full_name is None:\n    return None\nreturn full_name[0] + '****' if len(full_name) > 0 else '****'",
+      "comment": "Masks full name to show only first initial for non-admin users. Admins see unmasked data.",
+      "code": "# Check if current user is an admin - admins see unmasked data\nif spark.sql(\"SELECT is_account_group_member('admins')\").collect()[0][0]:\n    return full_name\n# Non-admins see masked data\nif full_name is None:\n    return None\nreturn full_name[0] + '****' if len(full_name) > 0 else '****'",
       "params": [
         {
           "name": "full_name",
@@ -317,8 +317,8 @@
       "type": "column_mask",
       "language": "python",
       "return_type": "STRING",
-      "comment": "Masks street address for non-exempt users",
-      "code": "if address is None:\n    return None\nreturn '****'",
+      "comment": "Masks street address for non-admin users. Admins see unmasked data.",
+      "code": "# Check if current user is an admin - admins see unmasked data\nif spark.sql(\"SELECT is_account_group_member('admins')\").collect()[0][0]:\n    return address\n# Non-admins see masked data\nif address is None:\n    return None\nreturn '****'",
       "params": [
         {
           "name": "address",
@@ -334,8 +334,8 @@
       "type": "column_mask",
       "language": "python",
       "return_type": "STRING",
-      "comment": "Masks postal/zip code to show only first 3 characters",
-      "code": "if postal_zip_code is None:\n    return None\nreturn postal_zip_code[:3] + '***' if len(postal_zip_code) > 3 else '****'",
+      "comment": "Masks postal/zip code to show only first 3 characters for non-admin users. Admins see unmasked data.",
+      "code": "# Check if current user is an admin - admins see unmasked data\nif spark.sql(\"SELECT is_account_group_member('admins')\").collect()[0][0]:\n    return postal_zip_code\n# Non-admins see masked data\nif postal_zip_code is None:\n    return None\nreturn postal_zip_code[:3] + '***' if len(postal_zip_code) > 3 else '****'",
       "params": [
         {
           "name": "postal_zip_code",

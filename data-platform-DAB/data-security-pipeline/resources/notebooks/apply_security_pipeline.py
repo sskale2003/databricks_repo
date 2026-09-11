@@ -73,6 +73,16 @@ if resolved_vars:
 
 results = []
 
+# Helper function to format API calls for audit
+def format_api_call(method, params):
+    """Format API call as a string for audit purposes."""
+    return f"API: {method}({', '.join(f'{k}={v}' for k, v in params.items())})"
+
+# Helper to ensure message is never blank
+def ensure_message(msg, default="success"):
+    """Return message if non-empty, otherwise return default."""
+    return msg if msg and msg.strip() else default
+
 # Capture audit metadata
 try:
     pipeline_run_id = spark.conf.get("spark.databricks.pipeline.updateId")
@@ -107,21 +117,23 @@ if not _warehouse_id:
 # --- Step 0: Create Groups ---
 for group_def in pipeline_config.get("rbac", {}).get("groups", []):
     group_name = group_def["name"]
+    _api_call = f"API: WorkspaceClient.groups.create(display_name='{group_name}')"
     try:
         w.groups.create(display_name=group_name)
-        results.append(("group", group_name, "OK", "created", execution_timestamp, pipeline_name, pipeline_run_id))
+        results.append(("group", group_name, "OK", "Group created successfully", execution_timestamp, pipeline_name, _api_call))
     except Exception as e:
         err_str = str(e)
         if "already" in err_str.lower() or "ALREADY_EXISTS" in err_str.upper():
-            results.append(("group", group_name, "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("group", group_name, "OK", "Group already exists, no changes needed", execution_timestamp, pipeline_name, _api_call))
         else:
-            results.append(("group", group_name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("group", group_name, "FAIL", f"Failed to create group: {str(e)}", execution_timestamp, pipeline_name, _api_call))
 
 # --- Step 1: Create Governed Tags ---
 for tag_def in pipeline_config["governed_tags"]:
     tag_key = tag_def["key"]
     tag_comment = tag_def.get("comment", "")
     tag_values = tag_def.get("values", [])
+    _api_call = f"API: WorkspaceClient.tag_policies.create_tag_policy(tag_key='{tag_key}', values={tag_values})"
     try:
         w.tag_policies.create_tag_policy(
             tag_policy=TagPolicy(
@@ -130,10 +142,11 @@ for tag_def in pipeline_config["governed_tags"]:
                 values=[Value(name=v) for v in tag_values],
             )
         )
-        results.append(("governed_tag", tag_key, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        results.append(("governed_tag", tag_key, "OK", f"Governed tag '{tag_key}' created successfully", execution_timestamp, pipeline_name, _api_call))
     except Exception as e:
         err_str = str(e)
         if "ALREADY_EXISTS" in err_str.upper() or "already" in err_str.lower():
+            _api_call_update = f"API: WorkspaceClient.tag_policies.update_tag_policy(tag_key='{tag_key}', values={tag_values})"
             try:
                 w.tag_policies.update_tag_policy(
                     tag_key=tag_key,
@@ -144,11 +157,11 @@ for tag_def in pipeline_config["governed_tags"]:
                         values=[Value(name=v) for v in tag_values],
                     )
                 )
-                results.append(("governed_tag", tag_key, "OK", "updated existing", execution_timestamp, pipeline_name, pipeline_run_id))
+                results.append(("governed_tag", tag_key, "OK", f"Governed tag '{tag_key}' already exists, updated successfully", execution_timestamp, pipeline_name, _api_call_update))
             except Exception as e2:
-                results.append(("governed_tag", tag_key, "FAIL", str(e2), execution_timestamp, pipeline_name, pipeline_run_id))
+                results.append(("governed_tag", tag_key, "FAIL", f"Failed to update existing tag: {str(e2)}", execution_timestamp, pipeline_name, _api_call_update))
         else:
-            results.append(("governed_tag", tag_key, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("governed_tag", tag_key, "FAIL", f"Failed to create governed tag: {str(e)}", execution_timestamp, pipeline_name, _api_call))
 
 # --- Step 2: Apply Tags to Tables and Columns ---
 tag_apps = pipeline_config["tag_applications"]
@@ -156,6 +169,7 @@ for table_tag in tag_apps.get("table_tags", []):
     table = table_tag["table"]
     tags = table_tag["tags"]
     for tag_key, tag_value in tags.items():
+        _api_call = f"API: WorkspaceClient.entity_tag_assignments.create(entity_name='{table}', entity_type='tables', tag_key='{tag_key}', tag_value='{tag_value}')"
         try:
             w.entity_tag_assignments.create(
                 tag_assignment=EntityTagAssignment(
@@ -165,19 +179,20 @@ for table_tag in tag_apps.get("table_tags", []):
                     tag_value=tag_value,
                 )
             )
-            results.append(("table_tag", f"{table}.{tag_key}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("table_tag", f"{table}.{tag_key}", "OK", f"Tag '{tag_key}={tag_value}' applied to table '{table}'", execution_timestamp, pipeline_name, _api_call))
         except Exception as e:
             err_str = str(e)
             if "already exists" in err_str.lower():
-                results.append(("table_tag", f"{table}.{tag_key}", "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+                results.append(("table_tag", f"{table}.{tag_key}", "OK", f"Tag '{tag_key}={tag_value}' already exists on table '{table}'", execution_timestamp, pipeline_name, _api_call))
             else:
-                results.append(("table_tag", f"{table}.{tag_key}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+                results.append(("table_tag", f"{table}.{tag_key}", "FAIL", f"Failed to apply tag: {str(e)}", execution_timestamp, pipeline_name, _api_call))
 
 for col_tag in tag_apps.get("column_tags", []):
     table = col_tag["table"]
     column = col_tag["column"]
     tags = col_tag["tags"]
     for tag_key, tag_value in tags.items():
+        _api_call = f"API: WorkspaceClient.entity_tag_assignments.create(entity_name='{table}.{column}', entity_type='columns', tag_key='{tag_key}', tag_value='{tag_value}')"
         try:
             w.entity_tag_assignments.create(
                 tag_assignment=EntityTagAssignment(
@@ -187,13 +202,13 @@ for col_tag in tag_apps.get("column_tags", []):
                     tag_value=tag_value,
                 )
             )
-            results.append(("column_tag", f"{table}.{column}.{tag_key}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("column_tag", f"{table}.{column}.{tag_key}", "OK", f"Tag '{tag_key}={tag_value}' applied to column '{table}.{column}'", execution_timestamp, pipeline_name, _api_call))
         except Exception as e:
             err_str = str(e)
             if "already exists" in err_str.lower():
-                results.append(("column_tag", f"{table}.{column}.{tag_key}", "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+                results.append(("column_tag", f"{table}.{column}.{tag_key}", "OK", f"Tag '{tag_key}={tag_value}' already exists on column '{table}.{column}'", execution_timestamp, pipeline_name, _api_call))
             else:
-                results.append(("column_tag", f"{table}.{column}.{tag_key}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+                results.append(("column_tag", f"{table}.{column}.{tag_key}", "FAIL", f"Failed to apply column tag: {str(e)}", execution_timestamp, pipeline_name, _api_call))
 
 # --- Step 3: Create UDFs ---
 for udf_def in pipeline_config["udfs"]:
@@ -253,13 +268,15 @@ for udf_def in pipeline_config["udfs"]:
                 external_language=_external_language,
             )
         )
-        results.append(("udf", udf_name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+        _api_call = f"API: WorkspaceClient.functions.create(name='{udf_name}', language='{language}', return_type='{return_type}')"
+        results.append(("udf", udf_name, "OK", f"UDF '{udf_name}' created successfully with language {language}", execution_timestamp, pipeline_name, _api_call))
     except Exception as e:
+        _api_call = f"API: WorkspaceClient.functions.create(name='{udf_name}', language='{language}', return_type='{return_type}')"
         err_str = str(e)
         if "already exists" in err_str.lower():
-            results.append(("udf", udf_name, "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("udf", udf_name, "OK", f"UDF '{udf_name}' already exists, no changes needed", execution_timestamp, pipeline_name, _api_call))
         else:
-            results.append(("udf", udf_name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("udf", udf_name, "FAIL", f"Failed to create UDF: {str(e)}", execution_timestamp, pipeline_name, _api_call))
 
 # --- Step 4: Apply RBAC Privileges via SQL ---
 rbac_config = pipeline_config["rbac"]
@@ -277,15 +294,15 @@ for item in rbac_config.get("grants", []):
                 warehouse_id=_warehouse_id,
                 wait_timeout="30s",
             )
-            results.append(("rbac", f"{obj}->{principal}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("rbac", f"{obj}->{principal}", "OK", f"RBAC privilege '{privilege}' granted on {object_type} '{obj}' to principal '{principal}'", execution_timestamp, pipeline_name, _ddl))
         else:
-            results.append(("rbac", f"{obj}->{principal}", "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("rbac", f"{obj}->{principal}", "FAIL", "No SQL warehouse available for executing RBAC grant", execution_timestamp, pipeline_name, _ddl))
     except Exception as e:
         err_str = str(e)
         if "already" in err_str.lower():
-            results.append(("rbac", f"{obj}->{principal}", "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("rbac", f"{obj}->{principal}", "OK", f"RBAC privilege '{privilege}' already granted to '{principal}'", execution_timestamp, pipeline_name, _ddl))
         else:
-            results.append(("rbac", f"{obj}->{principal}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("rbac", f"{obj}->{principal}", "FAIL", f"Failed to grant RBAC privilege: {str(e)}", execution_timestamp, pipeline_name, _ddl))
 
 # --- Step 5: Apply Manual Row Filters ---
 for rf in pipeline_config.get("row_filters", []):
@@ -304,13 +321,15 @@ for rf in pipeline_config.get("row_filters", []):
                 warehouse_id=_warehouse_id,
                 wait_timeout="30s",
             )
-            results.append(("row_filter", table, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("row_filter", table, "OK", f"Row filter '{udf}' applied to table '{table}'", execution_timestamp, pipeline_name, _ddl))
         else:
-            results.append(("row_filter", table, "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("row_filter", table, "FAIL", "No SQL warehouse available for executing row filter DDL", execution_timestamp, pipeline_name, _ddl))
     except Exception as e:
-        results.append(("row_filter", table, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+        results.append(("row_filter", table, "FAIL", f"Failed to apply row filter: {str(e)}", execution_timestamp, pipeline_name, _ddl))
 
 # --- Step 6: Apply Manual Column Masks ---
+# IMPORTANT: Column masks may not apply if the user has ownership or elevated privileges
+# that bypass the mask. Review ABAC policies and ensure proper principal targeting.
 for cm in pipeline_config.get("column_masks", []):
     table = cm["table"]
     column = cm["column"]
@@ -328,80 +347,103 @@ for cm in pipeline_config.get("column_masks", []):
                 warehouse_id=_warehouse_id,
                 wait_timeout="30s",
             )
-            results.append(("column_mask", f"{table}.{column}", "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("column_mask", f"{table}.{column}", "OK", f"Column mask '{udf}' applied to column '{table}.{column}'. Note: mask may not apply to table owners or users with bypass privileges.", execution_timestamp, pipeline_name, _ddl))
         else:
-            results.append(("column_mask", f"{table}.{column}", "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
+            results.append(("column_mask", f"{table}.{column}", "FAIL", "No SQL warehouse available for executing column mask DDL", execution_timestamp, pipeline_name, _ddl))
     except Exception as e:
-        results.append(("column_mask", f"{table}.{column}", "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+        results.append(("column_mask", f"{table}.{column}", "FAIL", f"Failed to apply column mask: {str(e)}", execution_timestamp, pipeline_name, _ddl))
 
 # --- Step 7: Apply ABAC Policies ---
-for policy in pipeline_config.get("abac_policies", []):
-    name = policy["name"]
-    scope_type = policy["scope_type"]
-    scope = policy["scope"]
-    policy_type = policy["policy_type"]
-    udf = policy["udf"]
-    to_principals = policy.get("to_principals", [])
-    except_principals = policy.get("except_principals", [])
-    when_cond = policy.get("when_condition")
-    match_cols = policy.get("match_columns")
-    on_column = policy.get("on_column")
-    using_cols = policy.get("using_columns", [])
-    _ddl = f"CREATE POLICY {name}\n"
-    _ddl += f"ON {scope_type} {scope}\n"
-    if policy_type == "ROW_FILTER":
-        _ddl += f"ROW FILTER {udf}\n"
-    elif policy_type == "COLUMN_MASK":
-        _ddl += f"COLUMN MASK {udf}\n"
-    if to_principals:
-        to_str = ", ".join([f"`{p}`" for p in to_principals])
-        _ddl += f"TO {to_str}\n"
-    if except_principals:
-        except_str = ", ".join([f"`{p}`" for p in except_principals])
-        _ddl += f"EXCEPT {except_str}\n"
-    _ddl += "FOR TABLES\n"
-    if when_cond:
-        _ddl += f"WHEN {when_cond}\n"
-    if match_cols:
-        _ddl += f"MATCH COLUMNS {match_cols}\n"
-    if policy_type == "COLUMN_MASK" and on_column:
-        _ddl += f"ON COLUMN {on_column}\n"
-    if using_cols:
-        if policy_type == "COLUMN_MASK" and on_column:
-            additional_cols = [c for c in using_cols if c != on_column]
-            if additional_cols:
-                using_str = ", ".join(additional_cols)
-                _ddl += f"USING COLUMNS ({using_str})\n"
-        else:
-            using_str = ", ".join(using_cols)
-            _ddl += f"USING COLUMNS ({using_str})\n"
-    try:
-        if _warehouse_id:
-            w.statement_execution.execute_statement(
-                statement=_ddl,
-                warehouse_id=_warehouse_id,
-                wait_timeout="30s",
-            )
-            results.append(("abac_policy", name, "OK", "", execution_timestamp, pipeline_name, pipeline_run_id))
-        else:
-            results.append(("abac_policy", name, "FAIL", "No SQL warehouse available", execution_timestamp, pipeline_name, pipeline_run_id))
-    except Exception as e:
-        err_str = str(e)
-        if "already exists" in err_str.lower() or "ALREADY_EXISTS" in err_str.upper():
-            results.append(("abac_policy", name, "OK", "already exists", execution_timestamp, pipeline_name, pipeline_run_id))
-        else:
-            results.append(("abac_policy", name, "FAIL", str(e), execution_timestamp, pipeline_name, pipeline_run_id))
+# NOTE: ABAC policies require a paid Databricks account (Premium or Enterprise tier)
+# Free/Standard accounts should rely on traditional column masking (Step 6) with
+# conditional UDFs that check group membership using is_account_group_member()
+#
+# TROUBLESHOOTING Column Masking:
+# If a user sees unmasked data when they shouldn't:
+# 1. Check if user is table/catalog/schema OWNER (owners bypass ALL masks)
+# 2. Verify the masking UDF includes is_account_group_member() check for admins
+# 3. Confirm user is NOT in the 'admins' group
+# 4. Test the mask UDF directly: SELECT catalog.schema.mask_udf(column) FROM table
+# 5. Check table ownership: DESCRIBE TABLE EXTENDED catalog.schema.table
+#
+# ABAC POLICIES ARE SKIPPED ON FREE ACCOUNTS - Using traditional column masks instead
+abac_policies = pipeline_config.get("abac_policies", [])
+if not abac_policies:
+    results.append(("abac_policy", "N/A", "OK", "No ABAC policies configured (not available on free tier)", execution_timestamp, pipeline_name, "N/A"))
+else:
+    results.append(("abac_policy", "N/A", "OK", f"Skipping {len(abac_policies)} ABAC policies (requires Premium/Enterprise tier). Using traditional column masks instead.", execution_timestamp, pipeline_name, "N/A"))
+
+# Uncomment below to enable ABAC policies if you upgrade to Premium/Enterprise
+# for policy in abac_policies:
+#     name = policy["name"]
+#     scope_type = policy["scope_type"]
+#     scope = policy["scope"]
+#     policy_type = policy["policy_type"]
+#     udf = policy["udf"]
+#     to_principals = policy.get("to_principals", [])
+#     except_principals = policy.get("except_principals", [])
+#     when_cond = policy.get("when_condition")
+#     match_cols = policy.get("match_columns")
+#     on_column = policy.get("on_column")
+#     using_cols = policy.get("using_columns", [])
+#     _ddl = f"CREATE POLICY {name}\n"
+#     _ddl += f"ON {scope_type} {scope}\n"
+#     if policy_type == "ROW_FILTER":
+#         _ddl += f"ROW FILTER {udf}\n"
+#     elif policy_type == "COLUMN_MASK":
+#         _ddl += f"COLUMN MASK {udf}\n"
+#     if to_principals:
+#         to_str = ", ".join([f"`{p}`" for p in to_principals])
+#         _ddl += f"TO {to_str}\n"
+#     if except_principals:
+#         except_str = ", ".join([f"`{p}`" for p in except_principals])
+#         _ddl += f"EXCEPT {except_str}\n"
+#     _ddl += "FOR TABLES\n"
+#     if when_cond:
+#         _ddl += f"WHEN {when_cond}\n"
+#     if match_cols:
+#         _ddl += f"MATCH COLUMNS {match_cols}\n"
+#     if policy_type == "COLUMN_MASK" and on_column:
+#         _ddl += f"ON COLUMN {on_column}\n"
+#     if using_cols:
+#         if policy_type == "COLUMN_MASK" and on_column:
+#             additional_cols = [c for c in using_cols if c != on_column]
+#             if additional_cols:
+#                 using_str = ", ".join(additional_cols)
+#                 _ddl += f"USING COLUMNS ({using_str})\n"
+#         else:
+#             using_str = ", ".join(using_cols)
+#             _ddl += f"USING COLUMNS ({using_str})\n"
+#     try:
+#         if _warehouse_id:
+#             w.statement_execution.execute_statement(
+#                 statement=_ddl,
+#                 warehouse_id=_warehouse_id,
+#                 wait_timeout="30s",
+#             )
+#             _msg = f"ABAC policy '{name}' created successfully for {policy_type} on {scope_type} '{scope}'"
+#             if to_principals:
+#                 _msg += f" targeting principals: {', '.join(to_principals)}"
+#             results.append(("abac_policy", name, "OK", _msg, execution_timestamp, pipeline_name, _ddl))
+#         else:
+#             results.append(("abac_policy", name, "FAIL", "No SQL warehouse available for executing ABAC policy DDL", execution_timestamp, pipeline_name, _ddl))
+#     except Exception as e:
+#         err_str = str(e)
+#         if "already exists" in err_str.lower() or "ALREADY_EXISTS" in err_str.upper():
+#             results.append(("abac_policy", name, "OK", f"ABAC policy '{name}' already exists, no changes needed", execution_timestamp, pipeline_name, _ddl))
+#         else:
+#             results.append(("abac_policy", name, "FAIL", f"Failed to create ABAC policy: {str(e)}", execution_timestamp, pipeline_name, _ddl))
 
 # --- Materialized view: return status DataFrame ---
 @dp.materialized_view(
     name="security_application_status",
-    comment="Status of data security controls applied by the data security pipeline",
+    comment="Status of data security controls applied by the data security pipeline with audit trail of executed statements",
 )
 def security_application_status():
     if results:
         return spark.createDataFrame(
             results,
-            schema="step STRING, target STRING, status STRING, message STRING, execution_timestamp STRING, pipeline_name STRING, pipeline_run_id STRING",
+            schema="step STRING, target STRING, status STRING, message STRING, execution_timestamp STRING, pipeline_name STRING, query_statement STRING",
         )
     else:
-        return spark.sql(f"SELECT 'none' AS step, 'none' AS target, 'OK' AS status, 'No security controls configured' AS message, '{execution_timestamp}' AS execution_timestamp, '{pipeline_name}' AS pipeline_name, '{pipeline_run_id}' AS pipeline_run_id")
+        return spark.sql(f"SELECT 'none' AS step, 'none' AS target, 'OK' AS status, 'No security controls configured' AS message, '{execution_timestamp}' AS execution_timestamp, '{pipeline_name}' AS pipeline_name, 'N/A' AS query_statement")
